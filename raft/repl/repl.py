@@ -1,21 +1,47 @@
 import cmd
 
+from ..messages.message import ReplMessage
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 class RaftRepl(cmd.Cmd):
     intro = '=== pyraft repl in to interact with created cluster. Type help or ? to list commands. ===\n'
     prompt = '(pyraft) >>> '
 
-    def __init__(self, cluster):
+    def __init__(self, cluster, transport):
         super().__init__(self)
         self.cluster = cluster
+        self.transport = transport
 
     def do_SPEED(self, arg : str):
-        print(arg)
+        parsed = arg.split()
+        receiver = int(parsed[0])
+        speed = parsed[1]
+        
+        msg = ReplMessage.SpeedMessage('repl', receiver, speed)
+        self.transport.sendo(msg, receiver)
+
+        logger.info(f'[REPL] sending SPEED("{speed}") message to {receiver}.')
+
 
     def do_CRASH(self, arg : str):
-        print(arg)
+        parsed = arg.strip()
+        receiver = int(parsed)
+
+        msg = ReplMessage.CrashMessage('repl', receiver)
+        self.transport.sendo(msg, receiver)
+
+        logger.info(f'[REPL] sending CRASH message to {receiver}.')
 
     def do_START(self, arg : str):
-        print(arg)
+        logger.info('[REPL] sending START message.')
+
+        msg = ReplMessage.StartMessage('repl', None)
+        for receiver in self.cluster:
+            msg.receiver = receiver
+            self.transport.sendto(msg, receiver)
 
     def do_RECOVERY(self, arg : str):
         print(arg)
@@ -30,8 +56,3 @@ class RaftRepl(cmd.Cmd):
         if 'help' in line:
             return line
         return line.upper()
-
-if __name__ == '__main__':
-    # Testing the REPL
-    cluster = [1, 2, 3, 4]
-    RaftRepl(cluster).cmdloop()
