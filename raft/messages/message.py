@@ -64,7 +64,7 @@ class ReplMessage(Message):
 
     @staticmethod
     def SpeedMessage(sender, receiver, speed):
-        data = speed;
+        data = speed
         msg = ReplMessage(sender=sender, receiver=receiver, data=data)
         msg.repl_type = ReplMessage.ReplSpeedType
 
