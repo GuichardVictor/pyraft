@@ -3,7 +3,8 @@ from raft.states.follower import Follower
 from raft.states.candidate import Candidate
 
 from raft.protocols.handler import ServerProtocol, ClientProtocol, create_server
-#from raft.protocols.mpi_handler import MPIProtocol, MPITransport, create_mpi_server
+from raft.protocols.mpi_handler import MPIProtocol, MPITransport, create_mpi_server
+from mpi4py import MPI
 
 import asyncio
 import sys
@@ -15,14 +16,19 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S')
 
 def main(argc, argv):
-    ip, port = '127.0.0.1', 8000
-    cluster = [(ip, port), (ip, port+1), (ip, port+2)]
+    comm = MPI.COMM_WORLD
+    rank = comm.rank
+    size = comm.size
+    nb_client = 1
 
-    if argc > 1:
-        ip, port = str(argv[1]), int(argv[2])
-    
-    raft_node = ServerNode(ip, port, cluster=cluster)
-    server = create_server(ip, port, raft_node)
+    cluster = list(range(nb_client, size))
+
+    if rank == 0:
+        return
+
+    raft_node = ServerNode(rank, cluster=cluster)
+    raft_node.transport = create_mpi_server(raft_node)
+    # server = create_server(ip, port, raft_node)
 
     loop = asyncio.get_event_loop()
     try:
@@ -31,8 +37,6 @@ def main(argc, argv):
         pass
 
     # clean async io server
-    server.close()
-    loop.run_until_complete(server.wait_closed())
     loop.close()
 
 

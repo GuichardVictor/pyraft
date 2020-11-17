@@ -5,10 +5,9 @@ from ..states.candidate import Candidate
 import pickle
 
 class ServerNode:
-    def __init__(self, ip, port, state=None, cluster=[]):
-        self.name = ip + ':' + str(port)
-        self.ip = ip
-        self.port = port
+    def __init__(self, rank, state=None, cluster=[]):
+        self.name = str(rank)
+        self.rank = rank
         
         self.state = state if state is not None else Follower()
         self.state.set_server(self)
@@ -16,6 +15,8 @@ class ServerNode:
 
         self.cluster = cluster
         self.total_nodes = len(cluster)
+        
+        self.log_size = 5 #arbitrary and useless for now
 
         self.term = 0 # FIXME
     
@@ -45,11 +46,11 @@ class ServerNode:
         if to is None:
             self.broadcast_message(message)
         else:
-            self.transport.sendto(pickle.dumps(message), to)
+            self.transport.sendto(message, to)
 
     def broadcast_message(self, message):
-        for receiver in self.cluster:
-            if receiver[0] == self.ip and receiver[1] == self.port:
+        for rank in self.cluster:
+            if rank == self.rank:
                 continue
-            message.receiver = receiver
-            self.send_message(message, receiver)
+            message.receiver = rank
+            self.send_message(message, rank)
