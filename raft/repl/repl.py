@@ -55,4 +55,5 @@ class RaftRepl(cmd.Cmd):
     def precmd(self, line: str) -> str:
         if 'help' in line:
             return line
+
         return line.upper()
