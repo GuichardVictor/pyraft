@@ -10,7 +10,7 @@ class MPIProtocol:
         self.node = node
 
     def data_received(self, msg):
-        sender = -1 if 'sender' not in msg.keys() else msg['sender']
+        sender = msg.sender
 
         if sender == 0:
             self.node.on_client(msg)
@@ -23,6 +23,7 @@ class MPITransport:
 
     def sendto(self, message, receiver):
         comm = MPI.COMM_WORLD
+        receiver = int(receiver)
         comm.send(message, dest=receiver)
 
     async def recv_handler(self):
@@ -50,7 +51,7 @@ class MPITransport:
 def create_mpi_server(server):
     protocol = MPIProtocol(server)
     transport = MPITransport(protocol)
-
+    asyncio.ensure_future(transport.recv_handler())
     print(f'Serving on rank {MPI.COMM_WORLD.Get_rank()}')
 
     return transport
