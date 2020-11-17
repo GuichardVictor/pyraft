@@ -4,6 +4,9 @@ class Message:
     HeartBeatType = 2
     HeartBeatResponseType = 3
     
+    ClientMessageType = 10
+    ReplMessageType = 20
+
     UndefinedType = -1
 
     def __init__(self, sender, receiver, term, data):
@@ -38,3 +41,47 @@ class HeartBeatResponse(Message):
     def __init__(self, sender, receiver, term, data):
         super().__init__(sender, receiver, term, data)
         self.message_type = Message.HeartBeatResponseType
+
+class ClientMessage(Message):
+    def __init__(self, sender, receiver, data):
+        super().__init__(self, sender, receiver, 0, data)
+
+        self.message_type = Message.ClientMessageType
+
+class ReplMessage(Message):
+
+    ReplSpeedType = 0
+    ReplStartType = 1
+    ReplCrashType = 2
+
+    UndefinedType = -1
+
+    def __init__(self, sender, receiver, data):
+        super().__init__(self, sender, receiver, 0, data)
+
+        self.message_type = Message.ReplMessageType
+        self.repl_type = None
+
+    @staticmethod
+    def SpeedMessage(sender, receiver, speed):
+        data = speed;
+        msg = ReplMessage(sender=sender, receiver=receiver, data=data)
+        msg.repl_type = ReplMessage.ReplSpeedType
+
+        return msg
+
+    @staticmethod
+    def StartMessage(sender, receiver):
+        data = None
+        msg = ReplMessage(sender=sender, receiver=receiver, data=data)
+        msg.repl_type = Message.ReplStartType
+
+        return msg
+
+    @staticmethod
+    def CrashMessage(sender, receiver):
+        data = None
+        msg = ReplMessage(sender=sender, receiver=receiver, data=data)
+        msg.repl_type = Message.ReplCrashType
+
+        return msg

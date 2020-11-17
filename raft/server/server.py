@@ -42,6 +42,9 @@ class ServerNode:
     def on_client(self, message):
         pass
 
+    def on_repl(self, message):
+        pass
+
     def send_message(self, message, to=None):
         if to is None:
             self.broadcast_message(message)
