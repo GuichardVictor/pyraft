@@ -44,7 +44,7 @@ class HeartBeatResponse(Message):
 
 class ClientMessage(Message):
     def __init__(self, sender, receiver, data):
-        super().__init__(self, sender, receiver, 0, data)
+        super().__init__(sender, receiver, 0, data)
 
         self.message_type = Message.ClientMessageType
 
@@ -57,7 +57,7 @@ class ReplMessage(Message):
     UndefinedType = -1
 
     def __init__(self, sender, receiver, data):
-        super().__init__(self, sender, receiver, 0, data)
+        super().__init__(sender, receiver, 0, data)
 
         self.message_type = Message.ReplMessageType
         self.repl_type = None
