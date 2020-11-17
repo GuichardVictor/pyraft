@@ -1,5 +1,6 @@
 # MPI import
 import asyncio
+from ..messages.message import Message
 
 from mpi4py import MPI
 
@@ -10,12 +11,14 @@ class MPIProtocol:
         self.node = node
 
     def data_received(self, msg):
-        sender = msg.sender
+        message_type = msg.type
 
-        if sender == 0:
+        if message_type == Message.ClientMessageType:
             self.node.on_client(msg)
+        if message_type == Message.ReplMessageType:
+            self.node.on_repl(msg)
         else:
-            self.node.on_message(msg, sender)
+            self.node.on_message(msg, msg.sender)
 
 class MPITransport:
     def __init__(self, protocol):
