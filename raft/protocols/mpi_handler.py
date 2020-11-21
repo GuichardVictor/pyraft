@@ -11,14 +11,14 @@ class MPIProtocol:
         self.node = node
 
     def data_received(self, msg):
-        message_type = msg.type
+        message_type = msg.global_type
 
         if message_type == Message.ClientMessageType:
-            self.node.on_client(msg)
-        if message_type == Message.ReplMessageType:
+            self.node.on_client(msg, msg.sender)
+        elif message_type == Message.ReplMessageType:
             self.node.on_repl(msg)
         else:
-            self.node.on_message(msg, msg.sender)
+            self.node.on_server(msg, msg.sender)
 
 class MPITransport:
     def __init__(self, protocol):

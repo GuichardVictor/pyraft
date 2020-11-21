@@ -1,15 +1,29 @@
 from .state import State
 from .leader import Leader
-from ..messages.message import VoteMessage
+from ..messages.message import PeerMessage
 
+import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
 
 class Candidate(State):
-    def __init__(self):
-        self.voters = []
+    def __init__(self, timeout=5):
         self.last_vote = None
+        self.timeout = timeout
+
+
+    def _start_timeout(self):
+        if self._timer is not None:
+            self._timer.cancel()
+        
+        loop = asyncio.get_event_loop()
+        self._timer = loop.call_later(self.next_timeout, self._timeout_reached)
+
+    def _timeout_reached(self):
+        logger.info(f'[{self._server.currentTerm}][{self._server.name}] reached timeout.')
+        self._timer.cancel()
+        self.start_election()
 
     def on_vote_request(self, message, sender):
         pass
@@ -23,7 +37,7 @@ class Candidate(State):
         """
         # Ensure there is no duplicate
         
-        logger.info(f'[{self._server.name}] received vote from {":".join(map(str, sender))}: [{message.data["vote"]}].')
+        logger.info(f'[{self._server.currentTerm}][{self._server.name}] received vote from {str(sender)}: [{message.data["vote"]}].')
         if message.sender not in self.voters and message.data['vote']:
             self.voters.append(message.sender)
 
@@ -31,17 +45,30 @@ class Candidate(State):
             if len(self.voters) > (self._server.total_nodes - 1) // 2:
                 
                 # candidate becomes the leader
-                logger.info(f'[{self._server.name}] has majority: becomes Leader.')
-                
+                logger.info(f'[{self._server.currentTerm}][{self._server.name}] has majority: becomes Leader.')
+                self._timer.cancel()
                 self._server.change_state(Leader())
 
-
     def start_election(self):
-        self._server.term += 1
+        self.voters = []
+        self._server.currentTerm += 1 
+        self._server.leader_rank = None
+        self.next_timeout = self._get_next_timeout()
+        self._timer = None
+        self._start_timeout()
 
-        logger.info(f'[{self._server.name}] starting an election.')
-        election_message = VoteMessage(sender=self._server.name, receiver=None, term=self._server.term, data={'log_size': self._server.log_size})
+        logger.info(f'[{self._server.currentTerm}][{self._server.name}] starting an election.')
+        lastLogIndex = self._server.log.last_log_index()
+
+        election_message = PeerMessage.VoteMessage(self._server.rank, None, {'term': self._server.currentTerm, 
+                                                                              'lastLogIndex' : lastLogIndex,
+                                                                              'lastLogTerm' : self._server.log.last_log_term()})
         # Send message
         self._server.send_message(election_message)
 
         self.last_vote = self._server.name
+    
+    def on_client_message(self, message, sender):
+        logger.info(f'[{self._server.currentTerm}][{self._server.name}] request leader rank from {str(sender)} - answering {self._server.leader_rank}.')
+        response = PeerMessage.RedirectionMessage(self._server.rank, message.sender, {'leader_rank':self._server.leader_rank})
+        self._server.send_message(response, sender)

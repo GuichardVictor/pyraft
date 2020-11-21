@@ -1,14 +1,19 @@
 from ..states.follower import Follower
 from ..states.leader import Leader
 from ..states.candidate import Candidate
-
+from ..log.log import LogManager
 import pickle
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class ServerNode:
     def __init__(self, rank, state=None, cluster=[]):
         self.name = str(rank)
         self.rank = rank
-        
+
         self.state = state if state is not None else Follower()
         self.state.set_server(self)
         self.transport = None
@@ -16,12 +21,25 @@ class ServerNode:
         self.cluster = cluster
         self.total_nodes = len(cluster)
         
-        self.log_size = 5 #arbitrary and useless for now
+        self.log_size = 0 #arbitrary and useless for now
+        self.log = LogManager(rank)
 
-        self.term = 0 # FIXME
-    
-    def on_message(self, message, sender):
-        self.state.on_message(message, sender)
+        self.leader_rank = None
+        self.currentTerm = 0 
+
+        self.commitIndex = 0
+        self.lastApplied = 0
+
+    def on_server(self, message, sender):
+        sender_term = message.data['term']
+        if sender_term > self.currentTerm:
+            self.state._timer.cancel()
+            self.currentTerm = sender_term
+            if not isinstance(self.state, Follower):
+                logger.info(f'[{self.currentTerm}][{self.name}] has term outdated {str(self.currentTerm)} vs {str(sender_term)}, falling back to follower.')
+                self.change_state(Follower())
+
+        self.state.on_peer_message(message, sender)
 
     def change_state(self, state):
         if isinstance(self.state, state.__class__):
@@ -31,19 +49,21 @@ class ServerNode:
         state.set_server(self)
 
         if isinstance(self.state, Leader):
-            self.state.heartbeat()
+            self.state.setup()
+            self.state.send_append_entries()
         elif isinstance(self.state, Candidate):
             self.state.start_election()
         elif isinstance(self.state, Follower):
             return
         else:
-            raise
+            raise NotImplementedError
 
-    def on_client(self, message):
-        pass
+    def on_client(self, message, sender):
+        self.state.on_client_message(message, sender)
 
     def on_repl(self, message):
-        pass
+        self.state.on_repl_message(message)
+
 
     def send_message(self, message, to=None):
         if to is None:

@@ -1,10 +1,12 @@
 from raft.server.server import ServerNode
 from raft.states.follower import Follower
 from raft.states.candidate import Candidate
+from raft.client.client import ClientNode
 
 from raft.protocols.handler import ServerProtocol, ClientProtocol, create_server
 from raft.protocols.mpi_handler import MPIProtocol, MPITransport, create_mpi_server
 from mpi4py import MPI
+
 
 import asyncio
 import sys
@@ -21,14 +23,18 @@ def main(argc, argv):
     size = comm.size
     nb_client = 1
 
-    cluster = list(range(nb_client, size))
+    cluster = list(range(nb_client + 1, size))
 
     if rank == 0:
+        # REPL
         return
-
-    raft_node = ServerNode(rank, cluster=cluster)
-    raft_node.transport = create_mpi_server(raft_node)
-    # server = create_server(ip, port, raft_node)
+    if rank <= nb_client:
+        raft_client = ClientNode(rank, cluster=cluster)
+        raft_client.transport = create_mpi_server(raft_client)
+    else:
+        raft_node = ServerNode(rank, cluster=cluster)
+        raft_node.transport = create_mpi_server(raft_node)
+        # server = create_server(ip, port, raft_node)
 
     loop = asyncio.get_event_loop()
     try:
