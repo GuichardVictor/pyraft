@@ -22,6 +22,7 @@ class LogManager:
         entries.reverse()
         for entry in entries:
             self.log.insert(index, entry)
+        self.log = self.log[:(index + len(entries))]
 
     def commit(self, srcIndex, tgtIndex):
         if srcIndex == tgtIndex:
@@ -29,7 +30,7 @@ class LogManager:
         filename = str(self.rank) + ".log"
         with open(filename, 'a+') as f:
             write_str = ""
-            for index in range(tgtIndex - srcIndex):
+            for index in range(srcIndex, tgtIndex):
                 cur_log = self.log[index]
                 write_str += str(cur_log.client_rank) + ',' + str(cur_log.term) + ',' + str(cur_log.entry) + '\n'
             f.write(write_str)
@@ -45,9 +46,8 @@ class LogManager:
     def last_log_term(self):
         return 0 if not len(self.log) else self.log[len(self.log) -1].term
 
-    def append_client_entries(self, entries, term, client_rank):
-        for entry in entries:
-            self.log.append(Log(entry, term, client_rank))
+    def append_client_entry(self, entry, term, client_rank):
+        self.log.append(Log(entry, term, client_rank))
 
     def next_index(self):
         return len(self.log)

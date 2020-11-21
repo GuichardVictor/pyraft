@@ -20,7 +20,7 @@ class ServerNode:
 
         self.cluster = cluster
         self.total_nodes = len(cluster)
-        
+        self.is_running = False
         self.log_size = 0 #arbitrary and useless for now
         self.log = LogManager(rank)
 
@@ -31,15 +31,34 @@ class ServerNode:
         self.lastApplied = 0
 
     def on_server(self, message, sender):
+        if not self.is_running:
+            return
         sender_term = message.data['term']
         if sender_term > self.currentTerm:
             self.state._timer.cancel()
             self.currentTerm = sender_term
             if not isinstance(self.state, Follower):
-                logger.info(f'[{self.currentTerm}][{self.name}] has term outdated {str(self.currentTerm)} vs {str(sender_term)}, falling back to follower.')
+                logger.info(f'[{self.currentTerm}][{self.name}] had term outdated, falling back to follower.')
                 self.change_state(Follower())
 
         self.state.on_peer_message(message, sender)
+
+    def on_client(self, message, sender):
+        if not self.is_running:
+            return
+        self.state.on_client_message(message, sender)
+
+    def on_repl(self, message):
+        self.state.on_repl_message(message)
+
+    def change_state_to_follower(self):
+        self.change_state(Follower())
+
+    def change_state_to_candidate(self):
+        self.change_state(Candidate())
+
+    def change_state_to_leader(self):
+        self.change_state(Leader())
 
     def change_state(self, state):
         if isinstance(self.state, state.__class__):
@@ -57,13 +76,6 @@ class ServerNode:
             return
         else:
             raise NotImplementedError
-
-    def on_client(self, message, sender):
-        self.state.on_client_message(message, sender)
-
-    def on_repl(self, message):
-        self.state.on_repl_message(message)
-
 
     def send_message(self, message, to=None):
         if to is None:

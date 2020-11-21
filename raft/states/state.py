@@ -3,6 +3,7 @@ import random
 from ..messages.message import PeerMessage, ClientMessage, ReplMessage
 
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,13 @@ class State:
         if message.type == ReplMessage.ReplSpeedMessageType:
             self.on_repl_speed(message)
 
+        if message.type == ReplMessage.ReplRecoverMessageType:
+            self.on_repl_recover(message)
+
+        if message.type == ReplMessage.ReplStopMessageType:
+            self.on_repl_stop(message)
+
+        
 
     def on_client_message(self, message, sender):
         if message.type == ClientMessage.ClientEntryMessageType:
@@ -56,8 +64,24 @@ class State:
     def on_client(self, message, sender):
         pass
 
+    def on_repl_speed(self, message):
+        pass
 
+    def on_repl_stop(self, message):
+        loop = asyncio.get_event_loop()
+        loop.stop()
+        loop.close()
+        exit(0)
+
+    def on_repl_start(self, message):
+        pass
+
+    def on_repl_crash(self, message):
+        pass
+
+    def on_repl_recover(self, message):
+        pass
 
     def _get_next_timeout(self):
-        # randomized election timeouts
+        # randomized timeouts
         return random.randrange(self.timeout, 2 * self.timeout)

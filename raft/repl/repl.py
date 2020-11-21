@@ -27,7 +27,7 @@ class RaftRepl(cmd.Cmd):
         return receiver in self.cluster
     
     def _check_speed(self, speed):
-        return speed in ['SLOW', 'NORMAL', 'FAST']
+        return speed in ['SLOW', 'MEDIUM', 'NORMAL']
 
     def do_SPEED(self, arg : str):
         parsed = arg.split()
@@ -43,6 +43,8 @@ class RaftRepl(cmd.Cmd):
 
         logger.info(f'[REPL] sending SPEED("{speed}") message to {receiver}.')
 
+    def do_EOF(self, arg):
+        exit(0)
 
     def do_CRASH(self, arg : str):
         parsed = arg.strip()
@@ -61,6 +63,14 @@ class RaftRepl(cmd.Cmd):
         logger.info('[REPL] sending START message.')
 
         msg = ReplMessage.StartMessage('repl', None)
+        for receiver in self.cluster:
+            msg.receiver = receiver
+            self.transport.sendto(msg, receiver)
+    
+    def do_STOP(self, arg : str):
+        logger.info('[REPL] sending STOP message.')
+
+        msg = ReplMessage.StopMessage('repl', None)
         for receiver in self.cluster:
             msg.receiver = receiver
             self.transport.sendto(msg, receiver)

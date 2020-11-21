@@ -1,6 +1,5 @@
 from .state import State
 from ..messages.message import PeerMessage
-from .candidate import Candidate
 from ..log.log import Log
 
 import asyncio
@@ -28,9 +27,12 @@ class Follower(State):
         self._timer = loop.call_later(self.next_timeout, self._timeout_reached)
     
     def _timeout_reached(self):
+        if not self._server.is_running:
+            self._start_timeout() # Reset Timeout
+            return
         logger.info(f'[{self._server.currentTerm}][{self._server.name}] reached timeout.')
         self._timer.cancel()
-        self._server.change_state(Candidate())
+        self._server.change_state_to_candidate()
 
     def on_append_entries_request(self, message, sender):
         self.votedFor = None
@@ -48,16 +50,18 @@ class Follower(State):
 
         if success:
             self._server.leader_rank = message.data['leaderId']
-            self._server.log.insert_entries(message.data['entries'], message.data['prevLogTerm'])
+            self._server.log.insert_entries(message.data['entries'], message.data['prevLogIndex'] + 1)
             prev_commit = self._server.commitIndex
-            self._server.commitIndex = message.data['leaderCommit']
+            if message.data['leaderCommit'] > self._server.commitIndex:
+                self._server.commitIndex = min(message.data['leaderCommit'], len(self._server.log.log))
+                logger.info(f'[{self._server.currentTerm}][{self._server.name}] new commitIndex {str(self._server.commitIndex)}.')
             self._server.log.commit(prev_commit, self._server.commitIndex)
 
         if message.data['entries'] != []:
             logger.info(f'[{self._server.currentTerm}][{self._server.name}] received entry from {str(sender)} answering {success}.')
             response = PeerMessage.AppendEntryResponse(self._server.rank, message.sender, 
                                                     {'term': self._server.currentTerm,
-                                                      'matchIndex' : self._server.log.last_log_index(),
+                                                      'matchIndex' : len(self._server.log.log),
                                                       'success':success})
             self._server.send_message(response, sender)
 
@@ -94,3 +98,15 @@ class Follower(State):
         logger.info(f'[{self._server.currentTerm}][{self._server.name}] request leader rank from {str(sender)} - answering {self._server.leader_rank}.')
         response = PeerMessage.RedirectionMessage(self._server.rank, message.sender, {'leader_rank':self._server.leader_rank})
         self._server.send_message(response, sender)
+
+    def on_repl_start(self, message):
+        self._start_timeout() # Reset Timeout
+        self._server.is_running = True
+    
+    def on_repl_crash(self, message):
+        self._start_timeout()
+        self._server.is_running = False
+
+    def on_repl_recover(self, message):
+        self._start_timeout() # Reset Timeout
+        self._server.is_running = True

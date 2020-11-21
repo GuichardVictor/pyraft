@@ -1,5 +1,4 @@
 from .state import State
-from .leader import Leader
 from ..messages.message import PeerMessage
 
 import asyncio
@@ -21,6 +20,9 @@ class Candidate(State):
         self._timer = loop.call_later(self.next_timeout, self._timeout_reached)
 
     def _timeout_reached(self):
+        if not self._server.is_running:
+            self._start_timeout() # Reset Timeout
+            return
         logger.info(f'[{self._server.currentTerm}][{self._server.name}] reached timeout.')
         self._timer.cancel()
         self.start_election()
@@ -42,15 +44,16 @@ class Candidate(State):
             self.voters.append(message.sender)
 
             # Does the candidate got the majority of votes (-1 because candidate votes for himself)
-            if len(self.voters) > (self._server.total_nodes - 1) // 2:
+            if len(self.voters) > (self._server.total_nodes) // 2:
                 
                 # candidate becomes the leader
                 logger.info(f'[{self._server.currentTerm}][{self._server.name}] has majority: becomes Leader.')
                 self._timer.cancel()
-                self._server.change_state(Leader())
+                self._server.change_state_to_leader()
 
     def start_election(self):
-        self.voters = []
+        self.last_vote = self._server.name
+        self.voters = [self._server.rank]
         self._server.currentTerm += 1 
         self._server.leader_rank = None
         self.next_timeout = self._get_next_timeout()
@@ -66,9 +69,23 @@ class Candidate(State):
         # Send message
         self._server.send_message(election_message)
 
-        self.last_vote = self._server.name
+    def on_append_entries_request(self, message, sender):
+        logger.info(f'[{self._server.currentTerm}][{self._server.name}] received RPC from leader, falling back to follower.')
+        self._timer.cancel()
+        self._server.change_state_to_follower()
+        self._server.on_server(message, sender)
+
     
     def on_client_message(self, message, sender):
         logger.info(f'[{self._server.currentTerm}][{self._server.name}] request leader rank from {str(sender)} - answering {self._server.leader_rank}.')
         response = PeerMessage.RedirectionMessage(self._server.rank, message.sender, {'leader_rank':self._server.leader_rank})
         self._server.send_message(response, sender)
+
+    def on_repl_recover(self, message):
+        self._timer.cancel()
+        self._server.is_running = True
+        self._server.change_state_to_follower()
+
+    def on_repl_crash(self, message):
+        self._timer.cancel()
+        self._server.is_running = False

@@ -1,6 +1,5 @@
 from .state import State
 from ..messages.message import PeerMessage
-
 import asyncio
 import logging
 
@@ -41,6 +40,8 @@ class Leader(State):
 
 
     def send_append_entries(self):
+        if not self._server.is_running:
+            return
         self.send_client_heartbeat()
         for rank in self._server.cluster:
             if rank == self._server.rank:
@@ -68,19 +69,20 @@ class Leader(State):
 
     def on_append_entries_response(self, message, sender):
         if message.data['success']:
-            self.matchIndex[sender] = message.data['matchIndex']
-            self.nextIndex[sender] += 1
+            if self.nextIndex[sender] <= len(self._server.log.log) and message.data['matchIndex'] > self.matchIndex[sender]:
+                self.matchIndex[sender] = message.data['matchIndex']
+                self.nextIndex[sender] += 1
 
             #check if we can commit last log
 
-            nb_commit = 0
+            nb_commit = 1
             for rank in self._server.cluster:
                 if self.nextIndex[rank] > self._server.commitIndex:
                     nb_commit += 1
                 
-                if nb_commit > (len(self._server.cluster) - 1) // 2:
+                if nb_commit > len(self._server.cluster) // 2:
                     # commit log
-                    logger.info(f'[{self._server.currentTerm}][{self._server.name}] Leader committed.')
+                    logger.info(f'[{self._server.currentTerm}][{self._server.name}] Leader committed commitIndex {str(self._server.commitIndex)}.')
                     log = self._server.log.entry_from_index(self._server.commitIndex)
                     self._server.commitIndex += 1
                     self._server.log.commit(self._server.commitIndex - 1, self._server.commitIndex)
@@ -93,14 +95,23 @@ class Leader(State):
                     self._server.send_message(message, log[0].client_rank)
                     return
 
-        else:       
+        else:
             self.nextIndex[sender] = max(0, self.nextIndex[sender] - 1)
         
 
     def on_client_message(self, message, sender):
         logger.info(f'[{self._server.currentTerm}][{self._server.name}] request leader log replication from {str(sender)}')
-        self._server.log.append_client_entries(message.data["entries"], self._server.currentTerm, sender)
+        self._server.log.append_client_entry(message.data["entries"], self._server.currentTerm, sender)
         if not sender in self.client_list:
             self.client_list.append(sender)
         self.send_append_entries()
-        
+
+    def on_repl_recover(self, message):
+        self._timer.cancel()
+        self._server.is_running = True
+        self._server.change_state_to_follower()
+    
+    def on_repl_crash(self, message):
+        self._timer.cancel()
+        self._server.is_running = False
+        self._server.change_state_to_follower()

@@ -19,18 +19,19 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S')
 
 def main(argc, argv):
+    if argc < 2:
+        exit(1)
     comm = MPI.COMM_WORLD
     rank = comm.rank
     size = comm.size
-    nb_client = 1
-
+    nb_client = int(argv[1])
     cluster = list(range(nb_client + 1, size))
 
     if rank == 0:
         # REPL
         transport = MPITransport(None)
         cluster = list(range(1, size))
-        repl = RaftRepl(cluster, transport).cmdloop()
+        RaftRepl(cluster, transport).cmdloop()
     elif rank > 0 and rank <= nb_client:
         raft_client = ClientNode(rank, cluster=cluster)
         raft_client.transport = create_mpi_server(raft_client)
@@ -47,7 +48,6 @@ def main(argc, argv):
 
     # clean async io server
     loop.close()
-
 
 if __name__ == '__main__':
     main(len(sys.argv), sys.argv)

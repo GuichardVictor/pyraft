@@ -17,6 +17,7 @@ class Message:
     ReplStartMessageType = 22
     ReplSpeedMessageType = 23
     ReplRecoverMessageType = 24
+    ReplStopMessageType = 25
 
 
     UndefinedType = -1
@@ -125,4 +126,10 @@ class ReplMessage(Message):
     def RecoverMessage(sender, receiver, data=None):
         msg = ReplMessage(sender=sender, receiver=receiver, data=data)
         msg.message_type = Message.ReplRecoverMessageType
+        return msg
+
+    @staticmethod
+    def StopMessage(sender, receiver, data=None):
+        msg = ReplMessage(sender=sender, receiver=receiver, data=data)
+        msg.message_type = Message.ReplStopMessageType
         return msg
