@@ -9,7 +9,7 @@ class RaftRepl(cmd.Cmd):
     prompt = '(pyraft) >>> '
 
     def __init__(self, cluster, transport, message_factory):
-        super().__init__(self)
+        super().__init__()
         self.cluster = cluster
         self.transport = transport
         self.message_factory = message_factory
