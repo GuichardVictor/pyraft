@@ -64,7 +64,17 @@ class RaftRepl(cmd.Cmd):
             self.transport.sendto(msg, receiver)
 
     def do_RECOVERY(self, arg : str):
-        print(arg)
+        parsed = arg.strip()
+
+        receiver = int(parsed)
+        if self._check_receiver(receiver) is False:
+            raise ValueError
+
+        msg = ReplMessage.RecoverMessage('repl', receiver)
+        self.transport.sendto(msg, receiver)
+
+        logger.info('[REPL] sending RECOVER message to {receiver}.')
+
 
     # ==========================
 
