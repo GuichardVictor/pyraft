@@ -20,7 +20,6 @@ class RaftRepl(cmd.Cmd):
         try:
             return super().onecmd(line)
         except Exception as e:
-            print(e)
             logger.error(f"[REPL] Failed line: {line}")
             return False
 
