@@ -1,4 +1,5 @@
 import cmd
+import sys
 
 import logging
 
@@ -15,11 +16,27 @@ class RaftRepl(cmd.Cmd):
         self.cluster = cluster
         self.transport = transport
 
+    def onecmd(self, line: str) -> bool:
+        try:
+            return super().onecmd(line)
+        except:
+            logger.error(f"[REPL] Failed line: {line}")
+            return False
+
+    def _check_receiver(self, receiver):
+        return receiver in self.cluster
+    
+    def _check_speed(self, speed):
+        return speed in ['slow', 'normal', 'fast']
+
     def do_SPEED(self, arg : str):
         parsed = arg.split()
         receiver = int(parsed[0])
         speed = parsed[1]
-        
+
+        if self._check_receiver(receiver) is False or self._check_speed(speed) is False:
+            raise ValueError
+
         msg = ReplMessage.SpeedMessage('repl', receiver, speed)
         self.transport.sendto(msg, receiver)
 
@@ -28,7 +45,10 @@ class RaftRepl(cmd.Cmd):
 
     def do_CRASH(self, arg : str):
         parsed = arg.strip()
+
         receiver = int(parsed)
+        if self._check_receiver(receiver) is False:
+            raise ValueError
 
         msg = ReplMessage.CrashMessage('repl', receiver)
         self.transport.sendto(msg, receiver)
