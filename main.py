@@ -3,6 +3,7 @@ from raft.states.follower import Follower
 from raft.states.candidate import Candidate
 from raft.client.client import ClientNode
 
+from raft.repl import RaftRepl
 from raft.protocols.handler import ServerProtocol, ClientProtocol, create_server
 from raft.protocols.mpi_handler import MPIProtocol, MPITransport, create_mpi_server
 from mpi4py import MPI
@@ -27,8 +28,10 @@ def main(argc, argv):
 
     if rank == 0:
         # REPL
-        return
-    if rank <= nb_client:
+        transport = MPITransport(None)
+        cluster = list(range(1, size))
+        repl = RaftRepl(cluster, transport).cmdloop()
+    elif rank > 0 and rank <= nb_client:
         raft_client = ClientNode(rank, cluster=cluster)
         raft_client.transport = create_mpi_server(raft_client)
     else:

@@ -16,6 +16,7 @@ class Message:
     ReplCrashMessageType = 21
     ReplStartMessageType = 22
     ReplSpeedMessageType = 23
+    ReplRecoverMessageType = 24
 
 
     UndefinedType = -1
@@ -89,7 +90,6 @@ class ClientMessage(Message):
 
         self.global_type = Message.ClientMessageType
 
-    
     @staticmethod
     def ClientEntryMessage(sender, receiver, data):
         msg = ClientMessage(sender=sender, receiver=receiver, data=data)
@@ -104,25 +104,25 @@ class ReplMessage(Message):
         self.global_type = Message.ReplMessageType
 
     @staticmethod
-    def ClientEntry(sender, receiver, speed):
-        data = speed
+    def SpeedMessage(sender, receiver, data):
         msg = ReplMessage(sender=sender, receiver=receiver, data=data)
         msg.message_type = Message.ReplSpeedMessageType
-
         return msg
 
     @staticmethod
-    def StartMessage(sender, receiver):
-        data = None
+    def StartMessage(sender, receiver, data=None):
         msg = ReplMessage(sender=sender, receiver=receiver, data=data)
         msg.message_type = Message.ReplStartMessageType
-
         return msg
 
     @staticmethod
-    def CrashMessage(sender, receiver):
-        data = None
+    def CrashMessage(sender, receiver, data=None):
         msg = ReplMessage(sender=sender, receiver=receiver, data=data)
         msg.message_type = Message.ReplCrashMessageType
+        return msg
 
+    @staticmethod
+    def RecoverMessage(sender, receiver, data=None):
+        msg = ReplMessage(sender=sender, receiver=receiver, data=data)
+        msg.message_type = Message.ReplRecoverMessageType
         return msg
