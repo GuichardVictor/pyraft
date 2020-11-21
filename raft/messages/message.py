@@ -75,7 +75,7 @@ class ReplMessage(Message):
     def StartMessage(sender, receiver):
         data = None
         msg = ReplMessage(sender=sender, receiver=receiver, data=data)
-        msg.repl_type = Message.ReplStartType
+        msg.repl_type = ReplMessage.ReplStartType
 
         return msg
 
@@ -83,7 +83,7 @@ class ReplMessage(Message):
     def CrashMessage(sender, receiver):
         data = None
         msg = ReplMessage(sender=sender, receiver=receiver, data=data)
-        msg.repl_type = Message.ReplCrashType
+        msg.repl_type = ReplMessage.ReplCrashType
 
         return msg
 
@@ -91,6 +91,6 @@ class ReplMessage(Message):
     def RecoverMessage(sender, receiver):
         data = None
         msg = ReplMessage(sender=sender, receiver=receiver, data=data)
-        msg.repl_type = Message.ReplRecoverType
+        msg.repl_type = ReplMessage.ReplRecoverType
 
         return msg

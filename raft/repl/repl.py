@@ -19,7 +19,8 @@ class RaftRepl(cmd.Cmd):
     def onecmd(self, line: str) -> bool:
         try:
             return super().onecmd(line)
-        except:
+        except Exception as e:
+            print(e)
             logger.error(f"[REPL] Failed line: {line}")
             return False
 
@@ -27,7 +28,7 @@ class RaftRepl(cmd.Cmd):
         return receiver in self.cluster
     
     def _check_speed(self, speed):
-        return speed in ['slow', 'normal', 'fast']
+        return speed in ['SLOW', 'NORMAL', 'FAST']
 
     def do_SPEED(self, arg : str):
         parsed = arg.split()
@@ -47,6 +48,7 @@ class RaftRepl(cmd.Cmd):
         parsed = arg.strip()
 
         receiver = int(parsed)
+
         if self._check_receiver(receiver) is False:
             raise ValueError
 
