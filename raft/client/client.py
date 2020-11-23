@@ -44,14 +44,17 @@ class ClientNode:
         self.leader_rank = next_target
         self.send_entry()
 
-    def on_repl(self, message):
+    def on_repl(self, message):                
         if message.type == ReplMessage.ReplStartMessageType:
             self._start_timeout() # Reset Timeout
             self.has_started = True
         elif message.type == ReplMessage.ReplStopMessageType:
             loop = asyncio.get_event_loop()
-            loop.close()
-            exit(0)
+            
+            for task in asyncio.all_tasks():
+                task.cancel()
+            loop.stop()
+            raise asyncio.CancelledError()
         else:
             pass
 

@@ -30,9 +30,13 @@ class MPITransport:
         comm.send(message, dest=receiver)
 
     async def recv_handler(self):
-        message = await MPITransport._waiting_for_message()
-        self._protocol.data_received(message)
-        asyncio.ensure_future(self.recv_handler())
+        try:
+            message = await MPITransport._waiting_for_message()
+            self._protocol.data_received(message)
+
+            asyncio.ensure_future(self.recv_handler())
+        except asyncio.CancelledError:
+            raise asyncio.CancelledError()
 
     def start(self):
         asyncio.ensure_future(self.recv_handler())
@@ -50,6 +54,7 @@ class MPITransport:
             complete, message = req.test()
         
         return message
+
 
 def create_mpi_server(server):
     protocol = MPIProtocol(server)

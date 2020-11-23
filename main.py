@@ -37,22 +37,27 @@ def main(argc, argv):
         # REPL
         transport = MPITransport(None)
         cluster = list(range(1, size))
+
         RaftRepl(cluster, transport).cmdloop()
+        
+        MPI.Finalize()
+        return
+
     elif rank > 0 and rank <= nb_client:
         raft_client = ClientNode(rank, cluster, timeout_client)
         raft_client.transport = create_mpi_server(raft_client)
+
     else:
         raft_node = ServerNode(rank, cluster, timeout_list)
         raft_node.transport = create_mpi_server(raft_node)
-        # server = create_server(ip, port, raft_node)
 
     loop = asyncio.get_event_loop()
     try:
         loop.run_forever()
-    except:
-        pass
+        # Loop as stopped, let's ensure that everything is stopping properly
+        loop.run_until_complete(loop.shutdown_asyncgens())
     finally:
-        # clean async io server
+        # Closing the loop
         loop.close()
 
 if __name__ == '__main__':
