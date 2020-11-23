@@ -31,7 +31,7 @@ class Candidate(State):
             self._start_timeout() # Reset Timeout
             return
 
-        logger.info(f'[term:{self._server.currentTerm}][server_id:{self._server.name}] reached timeout.')
+        logger.info(f'[{self._server.currentTerm}][{self._server.name}] reached timeout.')
         self._timer.cancel()
         self.start_election()
 

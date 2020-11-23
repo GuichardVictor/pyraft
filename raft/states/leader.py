@@ -110,6 +110,14 @@ class Leader(State):
                 nb_commit = list(filter(lambda elt: elt > 0, nb_commit))
 
             if prev_max_commit > 0:
+                # find index with correct term 
+                if self._server.log.term_at_index(self._server.commitIndex + (prev_max_commit - 1)) != self._server.currentTerm:
+                    reel_max_commit = 0
+                    for i in range(1, prev_max_commit + 1):
+                        if self._server.log.term_at_index(self._server.commitIndex + (i - 1)) == self._server.currentTerm:
+                            reel_max_commit = i
+                    prev_max_commit = reel_max_commit
+
                 logger.info(f'[{self._server.currentTerm}][{self._server.name}] Leader committing {str(prev_max_commit)} next entries.')
                 for _ in range(prev_max_commit):
                     # commit log
