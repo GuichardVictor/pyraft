@@ -8,11 +8,14 @@ import asyncio
 logger = logging.getLogger(__name__)
 
 class State:
+    ''' Base class for state
+    The class also handles the message dispatching according to types
+    '''
     def set_server(self, server):
         self._server = server
 
-
     def on_repl_message(self, message):
+        ''' Dispatches repl message'''
         if message.type == ReplMessage.ReplStartMessageType:
             self.on_repl_start(message)
 
@@ -27,15 +30,15 @@ class State:
 
         if message.type == ReplMessage.ReplStopMessageType:
             self.on_repl_stop(message)
-
         
 
     def on_client_message(self, message, sender):
+        ''' Dispatches client message'''
         if message.type == ClientMessage.ClientEntryMessageType:
             self.on_client(message, sender)
 
     def on_peer_message(self, message, sender):
-
+        ''' Dispatches server message'''
         if message.type == PeerMessage.VoteMessageType:
             self.on_vote_request(message, sender)
         
@@ -65,6 +68,7 @@ class State:
         pass
 
     def on_repl_speed(self, message):
+        ''' Compute time to sleep at recv and send '''
         percentage = 0
         if message.data['speed'] == 'MEDIUM':
             percentage = 25
@@ -73,6 +77,7 @@ class State:
         self.sleep_time = self.next_timeout * (percentage / 100.0)
 
     def on_repl_stop(self, message):
+        ''' Cancel all asyncio tasks and stop loop '''
         loop = asyncio.get_event_loop()
 
         for task in asyncio.all_tasks():

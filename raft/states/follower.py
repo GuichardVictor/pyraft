@@ -8,15 +8,22 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Follower(State):
-    def __init__(self, timeout):
-        self.timeout = timeout
+    ''' Raft Follower class
 
-        self.next_timeout = self._get_next_timeout()
-        
+    Python representation of the Follower state in raft paper
+
+    Args:
+        timeout: time before becoming Candidate
+    '''
+
+    def __init__(self, timeout):
         self.votedFor = None
         self.lastVoteTerm = 0
-        self._timer = None
         
+        self.timeout = timeout
+        self.next_timeout = self._get_next_timeout()
+        self._timer = None
+
         self._start_timeout()
 
     def _start_timeout(self):
@@ -35,11 +42,25 @@ class Follower(State):
         self._server.change_state_to_candidate()
 
     def on_append_entries_request(self, message, sender):
-        self.votedFor = None
-        term_condition = message.data['term'] >= self._server.currentTerm
-        if term_condition:
-            self._start_timeout() # Reset Timeout
+        ''' Append all entries given by leader after prevLogIndex
+            if conditions are satisfied and also commits some
+        Conditions for appending:
+            - term is bigger or equal to follower's
+            - log contains entry at prevLogIndex with matching term
 
+        Condition for commit:
+            - Leader has already committed this entry
+
+        Returns:
+            - last log index for leader to update
+            - bool success 
+        '''
+        term_condition = message.data['term'] >= self._server.currentTerm
+        if not term_condition:
+            return
+
+        self.votedFor = None
+        self._start_timeout() # Reset Timeout
 
         prev_log_condition = (message.data['prevLogTerm'] < 0
                               or (message.data["prevLogIndex"] < len(self._server.log.log)
@@ -71,9 +92,10 @@ class Follower(State):
         """ Follower on vote request
 
         Condition for yes:
+            - follower term is lower than candidate
+            - follower last log term matches with candidate
             - have not voted during the term
-            - follower log is not longer or newer than candidate
-            - have received an heart beat from a leader before the election time out
+
         """
         term_condition = message.data['term'] >= self._server.currentTerm
 
@@ -97,6 +119,7 @@ class Follower(State):
         self._server.send_message(response, sender)
 
     def on_client_message(self, message, sender):
+        ''' Redirecting to current leader '''
         logger.info(f'[{self._server.currentTerm}][{self._server.name}] request leader rank from {str(sender)} - answering {self._server.leader_rank}.')
         response = PeerMessage.RedirectionMessage(self._server.rank, message.sender, {'leader_rank':self._server.leader_rank})
         self._server.send_message(response, sender)

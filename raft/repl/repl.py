@@ -16,13 +16,6 @@ class RaftRepl(cmd.Cmd):
         self.cluster = cluster
         self.transport = transport
 
-    def onecmd(self, line: str) -> bool:
-        try:
-            return super().onecmd(line)
-        except Exception as e:
-            logger.error(f"[REPL] Failed line: {line}")
-            return False
-
     def _check_receiver(self, receiver):
         return receiver in self.cluster
     
@@ -42,9 +35,6 @@ class RaftRepl(cmd.Cmd):
         self.transport.sendto(msg, receiver)
 
         logger.info(f'[REPL] sending SPEED("{speed}") message to {receiver}.')
-
-    def do_EOF(self, arg):
-        exit(0)
 
     def do_CRASH(self, arg : str):
         parsed = arg.strip()
@@ -90,9 +80,19 @@ class RaftRepl(cmd.Cmd):
 
     # ==========================
 
+    def onecmd(self, line: str) -> bool:
+        try:
+            return super().onecmd(line)
+        except Exception as e:
+            logger.error(f"[REPL] Failed line: {line}")
+        return False
+
     def do_EXIT(self, arg : str):
         return True
 
+    def do_EOF(self, arg):
+        ''' Made to handle ctrl+c SIGINT'''
+        return True
 
     def precmd(self, line: str) -> str:
         if 'help' in line:

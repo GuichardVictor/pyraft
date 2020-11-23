@@ -7,6 +7,7 @@ from mpi4py import MPI
 # Using OPEN MPI
 
 class MPIProtocol:
+    ''' Dispatch messages when received from the transport '''
     def __init__(self, node):
         self.node = node
 
@@ -21,6 +22,8 @@ class MPIProtocol:
             self.node.on_server(msg, msg.sender)
 
 class MPITransport:
+    ''' Can be seen as a socket '''
+
     def __init__(self, protocol):
         self._protocol = protocol
 
@@ -30,6 +33,7 @@ class MPITransport:
         comm.send(message, dest=receiver)
 
     async def recv_handler(self):
+        ''' Register in asyncio event loop to handle recv from MPI '''
         try:
             message = await MPITransport._waiting_for_message()
             self._protocol.data_received(message)
@@ -50,7 +54,7 @@ class MPITransport:
         req = comm.irecv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG)
         
         while not complete:
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.01) # python await doesn't work with mpi
             complete, message = req.test()
         
         return message
