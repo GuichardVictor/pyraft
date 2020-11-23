@@ -10,13 +10,14 @@ logger = logging.getLogger(__name__)
 
 
 class ServerNode:
-    def __init__(self, rank, state=None, cluster=[]):
+    def __init__(self, rank, cluster, timeout_list):
         self.name = str(rank)
         self.rank = rank
 
-        self.state = state if state is not None else Follower()
+        self.state = Follower(timeout_list[0])
         self.state.set_server(self)
         self.transport = None
+        self.sleep_time = 0
 
         self.cluster = cluster
         self.total_nodes = len(cluster)
@@ -26,6 +27,7 @@ class ServerNode:
 
         self.leader_rank = None
         self.currentTerm = 0 
+        self.timeout_list = timeout_list
 
         self.commitIndex = 0
         self.lastApplied = 0
@@ -39,7 +41,7 @@ class ServerNode:
             self.currentTerm = sender_term
             if not isinstance(self.state, Follower):
                 logger.info(f'[{self.currentTerm}][{self.name}] had term outdated, falling back to follower.')
-                self.change_state(Follower())
+                self.change_state_to_follower()
 
         self.state.on_peer_message(message, sender)
 
@@ -52,13 +54,13 @@ class ServerNode:
         self.state.on_repl_message(message)
 
     def change_state_to_follower(self):
-        self.change_state(Follower())
+        self.change_state(Follower(self.timeout_list[0]))
 
     def change_state_to_candidate(self):
-        self.change_state(Candidate())
+        self.change_state(Candidate(self.timeout_list[1]))
 
     def change_state_to_leader(self):
-        self.change_state(Leader())
+        self.change_state(Leader(self.timeout_list[2]))
 
     def change_state(self, state):
         if isinstance(self.state, state.__class__):

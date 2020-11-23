@@ -49,9 +49,6 @@ class LogManager:
     def append_client_entry(self, entry, term, client_rank):
         self.log.append(Log(entry, term, client_rank))
 
-    def next_index(self):
-        return len(self.log)
-
     def is_out_of_bound(self, index):
         return index < 0 or index >= len(self.log)
 

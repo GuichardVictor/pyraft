@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ClientNode:
-    def __init__(self, rank, cluster=[], timeout=5):
+    def __init__(self, rank, cluster, timeout):
         self.name = str(rank)
         self.rank = rank
 
@@ -23,15 +23,10 @@ class ClientNode:
         self.curIndex = 0
 
         self.cluster = cluster
-        self.timeout = timeout
-        self.next_timeout = self._get_next_timeout()
+        self.next_timeout = timeout / 1000 
         self._timer = None
         self.read_all_entries()
         self._start_timeout()
-    
-    def _get_next_timeout(self):
-        # randomized timeouts
-        return random.randrange(self.timeout, 2 * self.timeout)
 
     def _start_timeout(self):
         if self._timer is not None:

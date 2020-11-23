@@ -65,13 +65,22 @@ class State:
         pass
 
     def on_repl_speed(self, message):
-        pass
+        percentage = 0
+        if message.data['speed'] == 'MEDIUM':
+            percentage = 25
+        if message.data["speed"] == "SLOW":
+            percentage = 50
+        self.sleep_time = self.next_timeout * (percentage / 100)
 
     def on_repl_stop(self, message):
         loop = asyncio.get_event_loop()
+        tasks = asyncio.Task.all_tasks()
+        print(len(tasks),tasks)
+        for task in tasks:
+            if not task.cancelled():
+                task.cancel()
+        asyncio.gather(*tasks)
         loop.stop()
-        loop.close()
-        exit(0)
 
     def on_repl_start(self, message):
         pass
@@ -84,4 +93,5 @@ class State:
 
     def _get_next_timeout(self):
         # randomized timeouts
-        return random.randrange(self.timeout, 2 * self.timeout)
+        value = random.randrange(self.timeout, 2 * self.timeout)
+        return value / 1000

@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Follower(State):
-    def __init__(self, timeout=5):
+    def __init__(self, timeout):
         self.timeout = timeout
 
         self.next_timeout = self._get_next_timeout()
@@ -41,8 +41,8 @@ class Follower(State):
             self._start_timeout() # Reset Timeout
 
 
-        prev_log_condition = (message.data['prevLogTerm'] <= 0
-                              or (message.data["prevLogIndex"] <= self._server.commitIndex
+        prev_log_condition = (message.data['prevLogTerm'] < 0
+                              or (message.data["prevLogIndex"] < len(self._server.log.log)
                               and  self._server.log.term_at_index(message.data["prevLogIndex"]) ==
                               message.data['prevLogTerm']))
 
@@ -57,11 +57,13 @@ class Follower(State):
                 logger.info(f'[{self._server.currentTerm}][{self._server.name}] new commitIndex {str(self._server.commitIndex)}.')
             self._server.log.commit(prev_commit, self._server.commitIndex)
 
+        prevLogIndex = message.data["prevLogIndex"]
+        term = message.data["prevLogTerm"]
         if message.data['entries'] != []:
-            logger.info(f'[{self._server.currentTerm}][{self._server.name}] received entry from {str(sender)} answering {success}.')
+            logger.info(f'[{self._server.currentTerm}][{self._server.name}] received entry from {str(sender)} answering {success} prevlogindex: {prevLogIndex}, term {term} .')
             response = PeerMessage.AppendEntryResponse(self._server.rank, message.sender, 
                                                     {'term': self._server.currentTerm,
-                                                      'matchIndex' : len(self._server.log.log),
+                                                      'matchIndex' : self._server.log.last_log_index(),
                                                       'success':success})
             self._server.send_message(response, sender)
 

@@ -27,16 +27,22 @@ def main(argc, argv):
     nb_client = int(argv[1])
     cluster = list(range(nb_client + 1, size))
 
+    # order : timeout follower, timeout candidate, timeout leader
+    timeout_list = [200, 200, 50]
+    timeout_client = 500
+    coef = 20#for debug
+    timeout_list = list(map(lambda elt: elt * coef, timeout_list))
+    timeout_client *= coef
     if rank == 0:
         # REPL
         transport = MPITransport(None)
         cluster = list(range(1, size))
         RaftRepl(cluster, transport).cmdloop()
     elif rank > 0 and rank <= nb_client:
-        raft_client = ClientNode(rank, cluster=cluster)
+        raft_client = ClientNode(rank, cluster, timeout_client)
         raft_client.transport = create_mpi_server(raft_client)
     else:
-        raft_node = ServerNode(rank, cluster=cluster)
+        raft_node = ServerNode(rank, cluster, timeout_list)
         raft_node.transport = create_mpi_server(raft_node)
         # server = create_server(ip, port, raft_node)
 
@@ -45,9 +51,9 @@ def main(argc, argv):
         loop.run_forever()
     except:
         pass
-
-    # clean async io server
-    loop.close()
+    finally:
+        # clean async io server
+        loop.close()
 
 if __name__ == '__main__':
     main(len(sys.argv), sys.argv)

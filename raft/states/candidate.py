@@ -7,10 +7,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Candidate(State):
-    def __init__(self, timeout=5):
+    def __init__(self, timeout):
         self.last_vote = None
         self.timeout = timeout
-
 
     def _start_timeout(self):
         if self._timer is not None:
