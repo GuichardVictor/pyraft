@@ -69,9 +69,13 @@ class State:
 
     def on_repl_stop(self, message):
         loop = asyncio.get_event_loop()
+
+        for task in asyncio.all_tasks():
+            task.cancel()
+
         loop.stop()
-        loop.close()
-        exit(0)
+
+        raise asyncio.CancelledError()
 
     def on_repl_start(self, message):
         pass
