@@ -4,6 +4,7 @@ from ..states.candidate import Candidate
 from ..log.log import LogManager
 import pickle
 
+import time
 import logging
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ class ServerNode:
     def on_server(self, message, sender):
         if not self.is_running:
             return
+        time.sleep(self.sleep_time/2)
         sender_term = message.data['term']
         if sender_term > self.currentTerm:
             self.state._timer.cancel()
@@ -42,12 +44,12 @@ class ServerNode:
             if not isinstance(self.state, Follower):
                 logger.info(f'[{self.currentTerm}][{self.name}] had term outdated, falling back to follower.')
                 self.change_state_to_follower()
-
         self.state.on_peer_message(message, sender)
 
     def on_client(self, message, sender):
         if not self.is_running:
             return
+        time.sleep(self.sleep_time/2)
         self.state.on_client_message(message, sender)
 
     def on_repl(self, message):
@@ -79,7 +81,9 @@ class ServerNode:
         else:
             raise NotImplementedError
 
-    def send_message(self, message, to=None):
+    def send_message(self, message, to=None, speed=True):
+        if speed:
+            time.sleep(self.sleep_time/2)
         if to is None:
             self.broadcast_message(message)
         else:
@@ -90,4 +94,4 @@ class ServerNode:
             if rank == self.rank:
                 continue
             message.receiver = rank
-            self.send_message(message, rank)
+            self.send_message(message, rank, False)

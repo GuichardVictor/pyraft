@@ -70,7 +70,7 @@ class State:
             percentage = 25
         if message.data["speed"] == "SLOW":
             percentage = 50
-        self.sleep_time = self.next_timeout * (percentage / 100)
+        self.sleep_time = self.next_timeout * (percentage / 100.0)
 
     def on_repl_stop(self, message):
         loop = asyncio.get_event_loop()
