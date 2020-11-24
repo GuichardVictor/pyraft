@@ -20,9 +20,13 @@ class RaftRepl(cmd.Cmd):
         return receiver in self.cluster
     
     def _check_speed(self, speed):
-        return speed in ['SLOW', 'MEDIUM', 'NORMAL']
+        return speed in ['SLOW', 'MEDIUM', 'FAST']
 
     def do_SPEED(self, arg : str):
+        ''' Set Process Speed.
+        
+        Usage: SPEED rank [SLOW:MEDIUM:FAST]
+        '''
         parsed = arg.split()
         receiver = int(parsed[0])
         speed = parsed[1]
@@ -37,6 +41,10 @@ class RaftRepl(cmd.Cmd):
         logger.info(f'[REPL] sending SPEED("{speed}") message to {receiver}.')
 
     def do_CRASH(self, arg : str):
+        ''' Block Process Communication.
+        
+        Usage: CRASH rank
+        '''
         parsed = arg.strip()
 
         receiver = int(parsed)
@@ -50,6 +58,10 @@ class RaftRepl(cmd.Cmd):
         logger.info(f'[REPL] sending CRASH message to {receiver}.')
 
     def do_START(self, arg : str):
+        ''' Start the program
+        
+        Usage: START
+        '''
         logger.info('[REPL] sending START message.')
 
         msg = ReplMessage.StartMessage('repl', None)
@@ -58,6 +70,10 @@ class RaftRepl(cmd.Cmd):
             self.transport.sendto(msg, receiver)
     
     def do_STOP(self, arg : str):
+        ''' Stop all servers and clients
+        
+        Usage: STOP
+        '''
         logger.info('[REPL] sending STOP message.')
 
         msg = ReplMessage.StopMessage('repl', None)
@@ -66,6 +82,10 @@ class RaftRepl(cmd.Cmd):
             self.transport.sendto(msg, receiver)
 
     def do_RECOVERY(self, arg : str):
+        ''' Recover a process and reset its state
+        
+        Usage: RECOVERY rank
+        '''
         parsed = arg.strip()
 
         receiver = int(parsed)
@@ -88,6 +108,7 @@ class RaftRepl(cmd.Cmd):
         return False
 
     def do_EXIT(self, arg : str):
+        ''' exit the repl (if STOP was not called CTRL+C will need to be used)'''
         return True
 
     def do_EOF(self, arg):

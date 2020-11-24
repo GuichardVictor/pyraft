@@ -30,7 +30,6 @@ def init_repl(nb_node):
     RaftRepl(cluster, transport).cmdloop()
     
     MPI.Finalize()
-    return
 
 def main(argc, argv):
     if argc < 2:
@@ -53,6 +52,7 @@ def main(argc, argv):
 
     if rank == 0:
         init_repl(size)
+        return
 
     elif rank > 0 and rank <= nb_client:
         init_client_node(rank, cluster, timeout_client)
