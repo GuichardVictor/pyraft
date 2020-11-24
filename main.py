@@ -46,7 +46,7 @@ def main(argc, argv):
     timeout_list = [200, 200, 50]
     timeout_client = 500
 
-    coef = 20 # for debug
+    coef = 1 # for debug
     timeout_list = list(map(lambda elt: elt * coef, timeout_list))
     timeout_client *= coef
 
