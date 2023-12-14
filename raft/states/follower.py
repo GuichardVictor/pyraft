@@ -1,6 +1,6 @@
 from .state import State
-from ..messages.message import VoteResponse, HeartBeatResponse
-from .candidate import Candidate
+from ..messages.message import PeerMessage
+from ..log.log import Log
 
 import asyncio
 import logging
@@ -8,14 +8,22 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Follower(State):
-    def __init__(self, timeout=5):
-        self.timeout = timeout
+    ''' Raft Follower class
 
+    Python representation of the Follower state in raft paper
+
+    Args:
+        timeout: time before becoming Candidate
+    '''
+
+    def __init__(self, timeout):
+        self.votedFor = None
+        self.lastVoteTerm = 0
+        
+        self.timeout = timeout
         self.next_timeout = self._get_next_timeout()
-        
-        self.last_vote = None
         self._timer = None
-        
+
         self._start_timeout()
 
     def _start_timeout(self):
@@ -26,37 +34,104 @@ class Follower(State):
         self._timer = loop.call_later(self.next_timeout, self._timeout_reached)
     
     def _timeout_reached(self):
-        logger.info(f'[{self._server.name}] reached timeout.')
+        if not self._server.is_running:
+            self._start_timeout() # Reset Timeout
+            return
+        logger.info(f'[{self._server.currentTerm}][{self._server.name}] reached timeout.')
         self._timer.cancel()
-        self._server.change_state(Candidate())
+        self._server.change_state_to_candidate()
 
-    def on_heartbeat(self, message, sender):
+    def on_append_entries_request(self, message, sender):
+        ''' Append all entries given by leader after prevLogIndex
+            if conditions are satisfied and also commits some
+        Conditions for appending:
+            - term is bigger or equal to follower's
+            - log contains entry at prevLogIndex with matching term
+
+        Condition for commit:
+            - Leader has already committed this entry
+
+        Returns:
+            - last log index for leader to update
+            - bool success 
+        '''
+        term_condition = message.data['term'] >= self._server.currentTerm
+        if not term_condition:
+            return
+
+        self.votedFor = None
         self._start_timeout() # Reset Timeout
-        self.last_vote = None
-        
-        logger.info(f'[{self._server.name}] received heartbeat from {":".join(map(str, sender))}.')
 
-        response = HeartBeatResponse(self._server.name, sender, self._server.term, {})
-        self._server.send_message(response, sender)
+        prev_log_condition = (message.data['prevLogTerm'] < 0
+                              or (message.data["prevLogIndex"] < len(self._server.log.log)
+                              and  self._server.log.term_at_index(message.data["prevLogIndex"]) ==
+                              message.data['prevLogTerm']))
+
+        success = term_condition and prev_log_condition
+
+        if success:
+            self._server.leader_rank = message.data['leaderId']
+            self._server.log.insert_entries(message.data['entries'], message.data['prevLogIndex'] + 1)
+            prev_commit = self._server.commitIndex
+            if message.data['leaderCommit'] > self._server.commitIndex:
+                self._server.commitIndex = min(message.data['leaderCommit'], len(self._server.log.log))
+                logger.info(f'[{self._server.currentTerm}][{self._server.name}] new commitIndex {str(self._server.commitIndex)}.')
+            self._server.log.commit(prev_commit, self._server.commitIndex)
+
+        prevLogIndex = message.data["prevLogIndex"]
+        term = message.data["prevLogTerm"]
+        if message.data['entries'] != []:
+            logger.info(f'[{self._server.currentTerm}][{self._server.name}] received entry from {str(sender)} answering {success} prevlogindex: {prevLogIndex}, term {term} .')
+            response = PeerMessage.AppendEntryResponse(self._server.rank, message.sender, 
+                                                    {'term': self._server.currentTerm,
+                                                      'matchIndex' : self._server.log.last_log_index(),
+                                                      'success':success})
+            self._server.send_message(response, sender)
 
     def on_vote_request(self, message, sender):
         """ Follower on vote request
 
         Condition for yes:
+            - follower term is lower than candidate
+            - follower last log term matches with candidate
             - have not voted during the term
-            - follower log is not longer or newer than candidate
-            - have received an heart beat from a leader before the election time out
-        """
 
-        vote_yes = self.last_vote is None
-        
-        logger.info(f'[{self._server.name}] requested vote from {":".join(map(str, sender))} - answering {vote_yes}.')
+        """
+        term_condition = message.data['term'] >= self._server.currentTerm
+
+        index_condition = (message.data['lastLogTerm'] > self._server.log.last_log_term() or 
+                           (message.data['lastLogTerm'] == self._server.log.last_log_term() and
+                            message.data['lastLogIndex'] >= self._server.log.last_log_index()))
+        not_voted = self.votedFor is None or message.data['term'] > self.lastVoteTerm
+
+        vote_yes = index_condition and term_condition and not_voted
+
+        logger.info(f'[{self._server.currentTerm}][{self._server.name}] requested vote from {str(sender)} - answering {vote_yes}.')
         
         if vote_yes:
-            self.last_vote = message.sender
+            self.votedFor = message.sender
+            self.lastVoteTerm = message.data['term']
             self._start_timeout()
         
-        response = VoteResponse(self._server.name, message.sender, message.term, {'vote': vote_yes})
+        response = PeerMessage.VoteResponse(self._server.rank, message.sender, {'vote': vote_yes, 'term' : self._server.currentTerm})
 
         # send response
         self._server.send_message(response, sender)
+
+    def on_client_message(self, message, sender):
+        ''' Redirecting to current leader '''
+        logger.info(f'[{self._server.currentTerm}][{self._server.name}] request leader rank from {str(sender)} - answering {self._server.leader_rank}.')
+        response = PeerMessage.RedirectionMessage(self._server.rank, message.sender, {'leader_rank':self._server.leader_rank})
+        self._server.send_message(response, sender)
+
+    def on_repl_start(self, message):
+        self._start_timeout() # Reset Timeout
+        self._server.is_running = True
+    
+    def on_repl_crash(self, message):
+        self._start_timeout()
+        self._server.is_running = False
+
+    def on_repl_recover(self, message):
+        self._start_timeout() # Reset Timeout
+        self._server.is_running = True
